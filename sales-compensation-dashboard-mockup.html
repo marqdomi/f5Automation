@@ -48,11 +48,24 @@
       background: #1a1a2e;
       display: flex;
       gap: 0;
-      padding: 0 24px;
+      padding: 0 16px;
       border-top: 1px solid #2d2d4e;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      white-space: nowrap;
+      flex-wrap: nowrap;
+      position: sticky;
+      top: 52px;
+      z-index: 99;
     }
+    .tabs::-webkit-scrollbar { display: none; }
     .tab {
-      padding: 8px 20px;
+      padding: 0 20px;
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
       color: #a0a0b0;
       cursor: pointer;
       font-size: 12px;
@@ -60,6 +73,8 @@
       border-bottom: 3px solid transparent;
       transition: all 0.2s;
       user-select: none;
+      -webkit-tap-highlight-color: rgba(255,255,255,0.15);
+      touch-action: manipulation;
     }
     .tab:hover { color: white; }
     .tab.active { color: white; border-bottom-color: #0078D4; }
@@ -260,6 +275,57 @@
 
     /* ─── Canvas fix ─────────────────────────────────────────────── */
     canvas { max-width: 100% !important; }
+
+    /* ─── Table scroll wrappers ──────────────────────────────────── */
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+    /* ─── Responsive: Tablet (≤900px) ───────────────────────────── */
+    @media (max-width: 900px) {
+      .main-grid { grid-template-columns: 1fr 1fr; }
+      .main-grid-3 { grid-template-columns: 1fr 1fr; }
+      .main-grid-wide { grid-template-columns: 1fr; }
+      .chart-card.span2 { grid-column: span 2; }
+      .chart-card.span3 { grid-column: span 2; }
+      .header-right { display: none; }
+    }
+
+    /* ─── Responsive: Mobile (≤600px) ───────────────────────────── */
+    @media (max-width: 600px) {
+      body { font-size: 12px; }
+
+      .header { padding: 0 12px; height: 48px; }
+      .header-title { font-size: 13px; }
+      .header-subtitle { display: none; }
+      .header-right { display: none; }
+      .header-logo { font-size: 10px; padding: 3px 6px; }
+
+      .tabs { padding: 0 8px; }
+      .tab { padding: 0 14px; font-size: 11px; }
+
+      .slicer-bar { padding: 8px 12px; gap: 10px; }
+      .slicer-select { min-width: 110px; font-size: 11px; }
+      .slicer-sep { display: none; }
+      .last-update { display: none; }
+
+      .page { padding: 10px 12px; }
+
+      .kpi-row { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+      .kpi-card { padding: 12px 14px; }
+      .kpi-value { font-size: 22px; }
+      .kpi-bg-icon { font-size: 34px; }
+
+      .main-grid { grid-template-columns: 1fr; }
+      .main-grid-wide { grid-template-columns: 1fr; }
+      .main-grid-3 { grid-template-columns: 1fr; }
+      .chart-card.span2, .chart-card.span3 { grid-column: span 1; }
+
+      .wf-label { width: 95px; font-size: 10px; }
+
+      .gauge-legend { flex-direction: column; gap: 4px; }
+
+      .powerbi-note { font-size: 10px; }
+      .powerbi-note ul { line-height: 1.6; }
+    }
   </style>
 </head>
 <body>
@@ -405,7 +471,7 @@
   <div class="chart-card" style="margin-bottom:12px;">
     <div class="card-title">Detalle de Bonos — <span id="vendedor-name">Pedro García</span></div>
     <div class="card-subtitle">Cada bono se calcula de forma independiente según la regla correspondiente</div>
-    <table class="detail-table" id="bonus-table">
+    <div class="table-scroll"><table class="detail-table" id="bonus-table">
       <thead>
         <tr>
           <th>Bono</th>
@@ -420,7 +486,7 @@
       <tbody id="bonus-tbody">
         <!-- filled by JS -->
       </tbody>
-    </table>
+    </table></div>
   </div>
 
   <!-- Power BI Note -->
@@ -474,7 +540,7 @@
     <div class="chart-card span2">
       <div class="card-title">Ranking del Equipo — Junio 2026</div>
       <div class="card-subtitle">Ordenado por % de cumplimiento de meta. Haz clic en un nombre para ver su detalle.</div>
-      <table class="team-table">
+      <div class="table-scroll"><table class="team-table">
         <thead>
           <tr>
             <th>#</th>
@@ -603,7 +669,7 @@
             <td></td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
     </div>
   </div>
 
