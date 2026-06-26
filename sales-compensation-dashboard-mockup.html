@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard de Compensaciones – Equipo de Ventas</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #F2F2F2;
+      color: #252423;
+      font-size: 13px;
+    }
+
+    /* ─── Header ────────────────────────────────────────────────── */
+    .header {
+      background: #1a1a2e;
+      color: white;
+      padding: 0 24px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .header-logo {
+      background: #0078D4;
+      color: white;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+    .header-title { font-size: 15px; font-weight: 600; }
+    .header-subtitle { font-size: 11px; color: #a0a0b0; }
+    .header-right { font-size: 11px; color: #a0a0b0; }
+
+    /* ─── Tab Navigation ────────────────────────────────────────── */
+    .tabs {
+      background: #1a1a2e;
+      display: flex;
+      gap: 0;
+      padding: 0 24px;
+      border-top: 1px solid #2d2d4e;
+    }
+    .tab {
+      padding: 8px 20px;
+      color: #a0a0b0;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .tab:hover { color: white; }
+    .tab.active { color: white; border-bottom-color: #0078D4; }
+
+    /* ─── Slicer Bar ────────────────────────────────────────────── */
+    .slicer-bar {
+      background: white;
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      border-bottom: 1px solid #E0E0E0;
+      flex-wrap: wrap;
+    }
+    .slicer-group { display: flex; align-items: center; gap: 8px; }
+    .slicer-label { font-size: 11px; color: #605E5C; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .slicer-select {
+      border: 1px solid #D0D0D0;
+      border-radius: 4px;
+      padding: 4px 28px 4px 10px;
+      font-size: 12px;
+      color: #252423;
+      background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23605E5C'/%3E%3C/svg%3E") no-repeat right 8px center;
+      appearance: none;
+      cursor: pointer;
+      min-width: 140px;
+    }
+    .slicer-sep { width: 1px; height: 24px; background: #E0E0E0; }
+    .last-update { margin-left: auto; font-size: 11px; color: #A0A0A0; }
+    .badge-live {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #E6F2E6; color: #107C10; font-size: 10px; font-weight: 600;
+      padding: 2px 8px; border-radius: 10px;
+    }
+    .badge-live::before { content: '●'; font-size: 8px; }
+
+    /* ─── Page Containers ───────────────────────────────────────── */
+    .page { display: none; padding: 16px 24px; }
+    .page.active { display: block; }
+
+    /* ─── KPI Cards ─────────────────────────────────────────────── */
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    .kpi-card {
+      background: white;
+      border-radius: 6px;
+      padding: 16px 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border-top: 4px solid transparent;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card.blue { border-top-color: #0078D4; }
+    .kpi-card.green { border-top-color: #107C10; }
+    .kpi-card.amber { border-top-color: #FFC83D; }
+    .kpi-card.teal  { border-top-color: #008575; }
+    .kpi-label { font-size: 11px; color: #605E5C; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+    .kpi-value { font-size: 28px; font-weight: 700; color: #252423; line-height: 1; }
+    .kpi-value.green-text { color: #107C10; }
+    .kpi-value.amber-text { color: #D38700; }
+    .kpi-meta { font-size: 11px; color: #605E5C; margin-top: 6px; }
+    .kpi-trend { font-size: 11px; margin-top: 4px; }
+    .kpi-trend.up { color: #107C10; }
+    .kpi-trend.down { color: #D83B01; }
+    .kpi-bg-icon {
+      position: absolute; right: 12px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 48px; opacity: 0.06; user-select: none;
+    }
+
+    /* ─── Main Grid ─────────────────────────────────────────────── */
+    .main-grid { display: grid; grid-template-columns: 280px 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .main-grid-wide { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .main-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+    /* ─── Chart Cards ───────────────────────────────────────────── */
+    .chart-card {
+      background: white;
+      border-radius: 6px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-card.span2 { grid-column: span 2; }
+    .chart-card.span3 { grid-column: span 3; }
+    .card-title { font-size: 12px; font-weight: 700; color: #252423; margin-bottom: 4px; }
+    .card-subtitle { font-size: 10px; color: #A0A0A0; margin-bottom: 12px; }
+    .chart-area { flex: 1; min-height: 160px; position: relative; }
+
+    /* ─── Gauge ─────────────────────────────────────────────────── */
+    .gauge-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; }
+    .gauge-number { font-size: 38px; font-weight: 800; color: #252423; line-height: 1; }
+    .gauge-label  { font-size: 12px; color: #605E5C; margin-top: 4px; }
+    .gauge-legend { display: flex; gap: 12px; margin-top: 12px; font-size: 10px; }
+    .gauge-legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+
+    /* ─── Waterfall / Breakdown ─────────────────────────────────── */
+    .waterfall { display: flex; flex-direction: column; gap: 6px; flex: 1; justify-content: center; }
+    .wf-row { display: flex; align-items: center; gap: 8px; }
+    .wf-label { font-size: 11px; color: #605E5C; width: 130px; flex-shrink: 0; text-align: right; }
+    .wf-bar-wrap { flex: 1; height: 20px; background: #F0F0F0; border-radius: 3px; overflow: hidden; position: relative; }
+    .wf-bar { height: 100%; border-radius: 3px; display: flex; align-items: center; padding-left: 6px; }
+    .wf-bar span { font-size: 10px; font-weight: 700; color: white; white-space: nowrap; }
+    .wf-total { border-top: 2px dashed #D0D0D0; padding-top: 8px; margin-top: 4px; }
+    .wf-total .wf-bar { background: #252423 !important; }
+
+    /* ─── Bonus Detail Table ────────────────────────────────────── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .detail-table th {
+      text-align: left; padding: 6px 10px;
+      background: #F7F7F7; color: #605E5C;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+      border-bottom: 2px solid #E0E0E0;
+    }
+    .detail-table td { padding: 8px 10px; border-bottom: 1px solid #F0F0F0; }
+    .detail-table tr:last-child td { border-bottom: none; }
+    .detail-table tr:hover td { background: #F7F9FF; }
+    .pill {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 10px; font-weight: 700;
+    }
+    .pill.green { background: #E6F2E6; color: #107C10; }
+    .pill.amber { background: #FFF4CC; color: #9A6700; }
+    .pill.red   { background: #FDE7E0; color: #D83B01; }
+    .pill.gray  { background: #F0F0F0; color: #605E5C; }
+    .pct-bar-wrap { width: 80px; height: 6px; background: #E0E0E0; border-radius: 3px; display: inline-block; vertical-align: middle; }
+    .pct-bar { height: 100%; border-radius: 3px; }
+    .bold { font-weight: 700; }
+    .text-right { text-align: right; }
+    .text-green { color: #107C10; }
+    .text-red   { color: #D83B01; }
+    .text-amber { color: #9A6700; }
+
+    /* ─── Progress Ring (small) ─────────────────────────────────── */
+    .progress-ring { display: flex; align-items: center; gap: 8px; }
+    .ring-wrap { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
+    .ring-val { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; }
+
+    /* ─── Manager Page ───────────────────────────────────────────── */
+    .team-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .team-table th {
+      text-align: left; padding: 8px 12px;
+      background: #1a1a2e; color: white;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .team-table td { padding: 10px 12px; border-bottom: 1px solid #F0F0F0; vertical-align: middle; }
+    .team-table tr:nth-child(even) td { background: #FAFAFA; }
+    .team-table tr:hover td { background: #F0F6FF; }
+    .avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: white; flex-shrink: 0;
+    }
+    .person-cell { display: flex; align-items: center; gap: 8px; }
+    .person-name { font-weight: 600; font-size: 12px; }
+    .person-role { font-size: 10px; color: #A0A0A0; }
+    .attain-bar-wrap { width: 100px; height: 8px; background: #E0E0E0; border-radius: 4px; display: inline-block; vertical-align: middle; margin-right: 6px; }
+    .attain-bar { height: 100%; border-radius: 4px; }
+
+    /* ─── Rank medal ─────────────────────────────────────────────── */
+    .medal { font-size: 16px; }
+
+    /* ─── Footer note ────────────────────────────────────────────── */
+    .powerbi-note {
+      background: #EFF6FF; border: 1px solid #CCE3FA; border-radius: 6px;
+      padding: 12px 16px; margin-top: 16px; font-size: 11px; color: #004E8C;
+    }
+    .powerbi-note strong { display: block; margin-bottom: 4px; font-size: 12px; }
+    .powerbi-note ul { margin: 6px 0 0 16px; line-height: 1.8; }
+
+    /* ─── Tooltip hint ────────────────────────────────────────────── */
+    .hint {
+      display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+      background: #E0E0E0; color: #605E5C; font-size: 9px; font-weight: 700;
+      text-align: center; line-height: 14px; cursor: help; margin-left: 4px;
+    }
+
+    /* ─── Mini Sparkline ─────────────────────────────────────────── */
+    .sparkline { display: flex; align-items: flex-end; gap: 2px; height: 28px; }
+    .spark-bar { flex: 1; background: #CCE0FA; border-radius: 2px 2px 0 0; min-width: 4px; }
+    .spark-bar.highlight { background: #0078D4; }
+
+    /* ─── Alert box ───────────────────────────────────────────────── */
+    .alert-box {
+      border-radius: 6px; padding: 10px 14px; font-size: 11px;
+      display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px;
+    }
+    .alert-box.info { background: #EFF6FF; border-left: 4px solid #0078D4; color: #004E8C; }
+    .alert-box.warn { background: #FFF4CC; border-left: 4px solid #FFC83D; color: #6B4D00; }
+    .alert-icon { font-size: 16px; flex-shrink: 0; }
+
+    /* ─── Section heading ─────────────────────────────────────────── */
+    .section-heading {
+      font-size: 11px; font-weight: 700; color: #605E5C;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      margin: 16px 0 8px; border-bottom: 1px solid #E0E0E0; padding-bottom: 6px;
+    }
+
+    /* ─── Canvas fix ─────────────────────────────────────────────── */
+    canvas { max-width: 100% !important; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ HEADER ════════════════════════════ -->
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">PBI</div>
+    <div>
+      <div class="header-title">Dashboard de Compensaciones — Equipo de Ventas</div>
+      <div class="header-subtitle">Mockup de referencia · Junio 2026</div>
+    </div>
+  </div>
+  <div class="header-right">Actualizado: hoy 09:00 a.m. &nbsp;<span class="badge-live">En vivo</span></div>
+</header>
+
+<!-- ═══════════════════════════ TABS ══════════════════════════════ -->
+<nav class="tabs">
+  <div class="tab active" data-page="individual">📊 Mi Compensación</div>
+  <div class="tab" data-page="equipo">👥 Vista del Equipo</div>
+  <div class="tab" data-page="historial">📈 Historial Anual</div>
+</nav>
+
+<!-- ═══════════════════════════ SLICERS ═══════════════════════════ -->
+<div class="slicer-bar">
+  <div class="slicer-group">
+    <span class="slicer-label">Vendedor</span>
+    <select class="slicer-select" id="selVendedor" onchange="updatePage()">
+      <option>Pedro García</option>
+      <option>Laura Ramírez</option>
+      <option>Carlos López</option>
+      <option>Ana Torres</option>
+      <option>Diego Mendoza</option>
+    </select>
+  </div>
+  <div class="slicer-sep"></div>
+  <div class="slicer-group">
+    <span class="slicer-label">Mes</span>
+    <select class="slicer-select" id="selMes" onchange="updatePage()">
+      <option>Junio 2026</option>
+      <option>Mayo 2026</option>
+      <option>Abril 2026</option>
+      <option>Marzo 2026</option>
+      <option>Febrero 2026</option>
+      <option>Enero 2026</option>
+    </select>
+  </div>
+  <div class="slicer-sep"></div>
+  <div class="slicer-group">
+    <span class="slicer-label">Región</span>
+    <select class="slicer-select">
+      <option>Todas las regiones</option>
+      <option>Norte</option>
+      <option>Centro</option>
+      <option>Sur</option>
+    </select>
+  </div>
+  <div class="last-update">Datos al cierre del mes anterior · Fuente: CRM + RRHH</div>
+</div>
+
+<!-- ═══════════════════════════ PAGE 1: INDIVIDUAL ════════════════ -->
+<div class="page active" id="page-individual">
+
+  <!-- KPI Cards -->
+  <div class="kpi-row">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Sueldo Fijo</div>
+      <div class="kpi-value" id="kpi-fijo">$20,000</div>
+      <div class="kpi-meta">Mensual bruto garantizado</div>
+      <div class="kpi-bg-icon">💼</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Bonos Ganados</div>
+      <div class="kpi-value green-text" id="kpi-bonos">$8,400</div>
+      <div class="kpi-meta" id="kpi-bonos-meta">de $12,000 posible (70%)</div>
+      <div class="kpi-trend up" id="kpi-bonos-trend">▲ $1,200 vs mes anterior</div>
+      <div class="kpi-bg-icon">🏆</div>
+    </div>
+    <div class="kpi-card teal">
+      <div class="kpi-label">Total Compensación</div>
+      <div class="kpi-value" id="kpi-total">$28,400</div>
+      <div class="kpi-meta">Fijo + todos los bonos</div>
+      <div class="kpi-trend up" id="kpi-total-trend">▲ $1,200 vs mes anterior</div>
+      <div class="kpi-bg-icon">💰</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">% Cumplimiento Meta</div>
+      <div class="kpi-value amber-text" id="kpi-meta-pct">84%</div>
+      <div class="kpi-meta" id="kpi-meta-sub">Meta: $250,000 MXN en ventas</div>
+      <div class="kpi-trend up" id="kpi-meta-trend">▲ 4pp vs mes anterior</div>
+      <div class="kpi-bg-icon">🎯</div>
+    </div>
+  </div>
+
+  <!-- Alert contextual -->
+  <div class="alert-box info" id="alert-box">
+    <div class="alert-icon">ℹ️</div>
+    <div>
+      <strong>Pedro, te faltan $52,000 MXN en ventas para alcanzar el siguiente escalón de bono.</strong>
+      Al cierre del mes todavía puedes subir tu bono de meta de $4,000 a $7,000.
+      Consulta la pestaña <em>Historial Anual</em> para ver tu tendencia.
+    </div>
+  </div>
+
+  <!-- Main Grid Row 1 -->
+  <div class="main-grid">
+    <!-- Gauge -->
+    <div class="chart-card">
+      <div class="card-title">Cumplimiento de Meta <span class="hint" title="Porcentaje de ventas facturadas vs meta del mes">?</span></div>
+      <div class="card-subtitle">Mes en curso</div>
+      <div class="gauge-wrap">
+        <canvas id="gaugeChart" width="200" height="110" style="max-height:110px;"></canvas>
+        <div class="gauge-number" id="gauge-num">84%</div>
+        <div class="gauge-label">de meta mensual alcanzado</div>
+        <div class="gauge-legend">
+          <div><span class="gauge-legend-dot" style="background:#E0E0E0;"></span>Sin bono (&lt;60%)</div>
+          <div><span class="gauge-legend-dot" style="background:#FFC83D;"></span>Bono parcial (60-89%)</div>
+          <div><span class="gauge-legend-dot" style="background:#107C10;"></span>Bono completo (≥90%)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trend Chart -->
+    <div class="chart-card">
+      <div class="card-title">Compensación Mensual (últimos 6 meses)</div>
+      <div class="card-subtitle">Sueldo fijo + bonos variables</div>
+      <div class="chart-area">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Desglose Waterfall -->
+    <div class="chart-card">
+      <div class="card-title">Desglose de Compensación</div>
+      <div class="card-subtitle">Composición del mes actual</div>
+      <div class="waterfall" id="waterfall">
+        <!-- filled by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Bonus Detail Table -->
+  <div class="chart-card" style="margin-bottom:12px;">
+    <div class="card-title">Detalle de Bonos — <span id="vendedor-name">Pedro García</span></div>
+    <div class="card-subtitle">Cada bono se calcula de forma independiente según la regla correspondiente</div>
+    <table class="detail-table" id="bonus-table">
+      <thead>
+        <tr>
+          <th>Bono</th>
+          <th>Regla de activación</th>
+          <th>% Alcanzado</th>
+          <th>Progreso</th>
+          <th>Monto posible</th>
+          <th>Monto ganado</th>
+          <th>Estatus</th>
+        </tr>
+      </thead>
+      <tbody id="bonus-tbody">
+        <!-- filled by JS -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Power BI Note -->
+  <div class="powerbi-note">
+    <strong>⚙️ Nota de implementación Power BI — Vista Individual</strong>
+    <ul>
+      <li><b>Row-Level Security (RLS) dinámico:</b> cada vendedor solo ve sus propios datos al iniciar sesión con su correo corporativo.</li>
+      <li><b>Slicers</b> de mes y año para navegar al histórico sin cambiar de página.</li>
+      <li><b>KPI Cards</b> con comparación vs mes anterior (DAX: <code>CALCULATE([Total], PREVIOUSMONTH(...))</code>).</li>
+      <li><b>Gauge visual</b> con umbrales de color condicionados (rojo &lt;60%, ámbar 60-89%, verde ≥90%).</li>
+      <li><b>Tabla de bonos</b> con barras de progreso embebidas y formato condicional de colores.</li>
+      <li><b>Alerta contextual</b> (cuadro de texto dinámico con DAX) que indica cuánto falta para el siguiente escalón.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ PAGE 2: EQUIPO ════════════════════ -->
+<div class="page" id="page-equipo">
+
+  <!-- KPI Manager Row -->
+  <div class="kpi-row">
+    <div class="kpi-card blue">
+      <div class="kpi-label">Costo Total Nómina Variable</div>
+      <div class="kpi-value">$38,600</div>
+      <div class="kpi-meta">Bonos pagados este mes</div>
+      <div class="kpi-bg-icon">💸</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Promedio Cumplimiento Equipo</div>
+      <div class="kpi-value green-text">79%</div>
+      <div class="kpi-meta">5 vendedores activos</div>
+      <div class="kpi-trend up">▲ 3pp vs mes anterior</div>
+      <div class="kpi-bg-icon">📊</div>
+    </div>
+    <div class="kpi-card teal">
+      <div class="kpi-label">Vendedores en Meta (≥90%)</div>
+      <div class="kpi-value">2 / 5</div>
+      <div class="kpi-meta">Con bono completo</div>
+      <div class="kpi-bg-icon">✅</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">Top Performer del Mes</div>
+      <div class="kpi-value" style="font-size:18px; line-height:1.3;">Laura R.</div>
+      <div class="kpi-meta">112% de meta</div>
+      <div class="kpi-bg-icon">⭐</div>
+    </div>
+  </div>
+
+  <div class="main-grid-wide" style="margin-bottom:12px;">
+    <!-- Team table -->
+    <div class="chart-card span2">
+      <div class="card-title">Ranking del Equipo — Junio 2026</div>
+      <div class="card-subtitle">Ordenado por % de cumplimiento de meta. Haz clic en un nombre para ver su detalle.</div>
+      <table class="team-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Vendedor</th>
+            <th>% Meta</th>
+            <th>Progreso</th>
+            <th>Sueldo Fijo</th>
+            <th>Bonos Ganados</th>
+            <th>Total Mes</th>
+            <th>Bono Posible No Ganado</th>
+            <th>Tendencia (6M)</th>
+            <th>Estatus</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="medal">🥇</span></td>
+            <td>
+              <div class="person-cell">
+                <div class="avatar" style="background:#107C10;">LR</div>
+                <div><div class="person-name">Laura Ramírez</div><div class="person-role">Norte · Senior</div></div>
+              </div>
+            </td>
+            <td class="bold text-green">112%</td>
+            <td>
+              <div class="attain-bar-wrap"><div class="attain-bar" style="width:100%;background:#107C10;"></div></div>
+              <span style="font-size:10px;">★ Sobre meta</span>
+            </td>
+            <td>$22,000</td>
+            <td class="bold text-green">$14,500</td>
+            <td class="bold">$36,500</td>
+            <td class="text-green">$0 (máx logrado)</td>
+            <td><div class="sparkline"><div class="spark-bar" style="height:60%;"></div><div class="spark-bar" style="height:75%;"></div><div class="spark-bar" style="height:65%;"></div><div class="spark-bar" style="height:80%;"></div><div class="spark-bar" style="height:90%;"></div><div class="spark-bar highlight" style="height:100%;"></div></div></td>
+            <td><span class="pill green">✓ Bono completo</span></td>
+          </tr>
+          <tr>
+            <td><span class="medal">🥈</span></td>
+            <td>
+              <div class="person-cell">
+                <div class="avatar" style="background:#0078D4;">CM</div>
+                <div><div class="person-name">Carlos Méndez</div><div class="person-role">Centro · Senior</div></div>
+              </div>
+            </td>
+            <td class="bold text-green">96%</td>
+            <td>
+              <div class="attain-bar-wrap"><div class="attain-bar" style="width:96%;background:#107C10;"></div></div>
+              <span style="font-size:10px;"> </span>
+            </td>
+            <td>$20,000</td>
+            <td class="bold text-green">$11,200</td>
+            <td class="bold">$31,200</td>
+            <td class="text-green">$0 (máx logrado)</td>
+            <td><div class="sparkline"><div class="spark-bar" style="height:80%;"></div><div class="spark-bar" style="height:70%;"></div><div class="spark-bar" style="height:85%;"></div><div class="spark-bar" style="height:90%;"></div><div class="spark-bar" style="height:88%;"></div><div class="spark-bar highlight" style="height:96%;"></div></div></td>
+            <td><span class="pill green">✓ Bono completo</span></td>
+          </tr>
+          <tr>
+            <td><span class="medal">🥉</span></td>
+            <td>
+              <div class="person-cell">
+                <div class="avatar" style="background:#D38700;">PG</div>
+                <div><div class="person-name">Pedro García</div><div class="person-role">Norte · Mid</div></div>
+              </div>
+            </td>
+            <td class="bold text-amber">84%</td>
+            <td>
+              <div class="attain-bar-wrap"><div class="attain-bar" style="width:84%;background:#FFC83D;"></div></div>
+              <span style="font-size:10px;color:#9A6700;">Le falta 6pp</span>
+            </td>
+            <td>$20,000</td>
+            <td class="bold text-amber">$8,400</td>
+            <td class="bold">$28,400</td>
+            <td class="text-amber">$3,600 por capturar</td>
+            <td><div class="sparkline"><div class="spark-bar" style="height:55%;"></div><div class="spark-bar" style="height:60%;"></div><div class="spark-bar" style="height:70%;"></div><div class="spark-bar" style="height:75%;"></div><div class="spark-bar" style="height:80%;"></div><div class="spark-bar highlight" style="height:84%;"></div></div></td>
+            <td><span class="pill amber">⚡ Bono parcial</span></td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>
+              <div class="person-cell">
+                <div class="avatar" style="background:#008575;">AT</div>
+                <div><div class="person-name">Ana Torres</div><div class="person-role">Sur · Mid</div></div>
+              </div>
+            </td>
+            <td class="bold text-amber">71%</td>
+            <td>
+              <div class="attain-bar-wrap"><div class="attain-bar" style="width:71%;background:#FFC83D;"></div></div>
+              <span style="font-size:10px;color:#9A6700;">Le falta 19pp</span>
+            </td>
+            <td>$18,000</td>
+            <td class="bold text-amber">$4,200</td>
+            <td class="bold">$22,200</td>
+            <td class="text-amber">$6,800 por capturar</td>
+            <td><div class="sparkline"><div class="spark-bar" style="height:90%;"></div><div class="spark-bar" style="height:85%;"></div><div class="spark-bar" style="height:75%;"></div><div class="spark-bar" style="height:70%;"></div><div class="spark-bar" style="height:65%;"></div><div class="spark-bar highlight" style="height:71%;"></div></div></td>
+            <td><span class="pill amber">⚡ Bono parcial</span></td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>
+              <div class="person-cell">
+                <div class="avatar" style="background:#D83B01;">DM</div>
+                <div><div class="person-name">Diego Mendoza</div><div class="person-role">Centro · Jr</div></div>
+              </div>
+            </td>
+            <td class="bold text-red">48%</td>
+            <td>
+              <div class="attain-bar-wrap"><div class="attain-bar" style="width:48%;background:#D83B01;"></div></div>
+              <span style="font-size:10px;color:#D83B01;">Sin bono</span>
+            </td>
+            <td>$15,000</td>
+            <td class="bold text-red">$0</td>
+            <td class="bold">$15,000</td>
+            <td class="text-red">$11,000 no capturado</td>
+            <td><div class="sparkline"><div class="spark-bar" style="height:70%;"></div><div class="spark-bar" style="height:60%;"></div><div class="spark-bar" style="height:55%;"></div><div class="spark-bar" style="height:50%;"></div><div class="spark-bar" style="height:55%;"></div><div class="spark-bar highlight" style="height:48%;"></div></div></td>
+            <td><span class="pill red">✗ Sin bono</span></td>
+          </tr>
+          <!-- Total row -->
+          <tr style="background:#F7F9FF; font-weight:700; border-top:2px solid #0078D4;">
+            <td colspan="2" style="padding: 10px 12px;">TOTAL EQUIPO</td>
+            <td class="text-amber">79% prom.</td>
+            <td></td>
+            <td>$95,000</td>
+            <td class="text-green">$38,300</td>
+            <td>$133,300</td>
+            <td class="text-amber">$21,400 no capturado</td>
+            <td></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="main-grid-3">
+    <!-- Mix chart -->
+    <div class="chart-card">
+      <div class="card-title">Mix de Compensación por Vendedor</div>
+      <div class="card-subtitle">Fijo vs variable ganado</div>
+      <div class="chart-area" style="min-height:200px;">
+        <canvas id="mixChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Scatter Meta vs Compensación -->
+    <div class="chart-card">
+      <div class="card-title">Meta % vs Compensación Total</div>
+      <div class="card-subtitle">Relación cumplimiento–ingreso por persona</div>
+      <div class="chart-area" style="min-height:200px;">
+        <canvas id="scatterChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Bono no capturado -->
+    <div class="chart-card">
+      <div class="card-title">Bono Potencial No Capturado</div>
+      <div class="card-subtitle">Dinero que el equipo puede aún ganar este mes</div>
+      <div class="chart-area" style="min-height:200px;">
+        <canvas id="potentialChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="powerbi-note">
+    <strong>⚙️ Nota de implementación Power BI — Vista del Equipo (Gerente)</strong>
+    <ul>
+      <li><b>RLS por rol:</b> esta vista solo es visible para gerentes; los vendedores solo ven la pestaña "Mi Compensación".</li>
+      <li><b>Tabla con barras de progreso embebidas</b> y formato condicional de colores (rojo/ámbar/verde por umbral).</li>
+      <li><b>Sparklines de tendencia</b> (6 meses) como imagen SVG en columna de tabla — se puede hacer con medida DAX + HTML.</li>
+      <li><b>Scatter chart</b> para detectar outliers: alta compensación con bajo rendimiento o viceversa.</li>
+      <li><b>Drill-through:</b> clic en nombre del vendedor lleva a la vista individual de esa persona.</li>
+      <li><b>Tarjeta "Bono no capturado"</b> da visibilidad al gerente del costo de oportunidad del equipo.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ PAGE 3: HISTORIAL ═════════════════ -->
+<div class="page" id="page-historial">
+
+  <div class="main-grid-wide" style="margin-bottom:12px;">
+    <div class="chart-card">
+      <div class="card-title">Compensación Total Mensual — Año 2026</div>
+      <div class="card-subtitle">Sueldo fijo (gris) + bonos acumulados (azul) — <span id="hist-name">Pedro García</span></div>
+      <div class="chart-area" style="min-height:220px;">
+        <canvas id="annualChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="card-title">% Cumplimiento de Meta — Año 2026</div>
+      <div class="card-subtitle">Línea de tendencia y umbral de bono completo (90%)</div>
+      <div class="chart-area" style="min-height:220px;">
+        <canvas id="attainmentChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-grid-3">
+    <!-- YTD Summary -->
+    <div class="chart-card">
+      <div class="card-title">Resumen YTD (Ene–Jun 2026)</div>
+      <div class="card-subtitle">Acumulado del año en curso</div>
+      <table class="detail-table">
+        <tr><td class="kpi-label">Sueldo Fijo YTD</td><td class="bold text-right">$120,000</td></tr>
+        <tr><td class="kpi-label">Bonos Ganados YTD</td><td class="bold text-right text-green">$42,400</td></tr>
+        <tr><td class="kpi-label">Total Compensación YTD</td><td class="bold text-right">$162,400</td></tr>
+        <tr><td class="kpi-label">Bono Potencial Perdido YTD</td><td class="bold text-right text-red">$29,600</td></tr>
+        <tr><td class="kpi-label">% Meta Promedio YTD</td><td class="bold text-right text-amber">74%</td></tr>
+        <tr><td class="kpi-label">Meses en Meta Completa (≥90%)</td><td class="bold text-right">1 de 6</td></tr>
+      </table>
+    </div>
+
+    <!-- Best/worst month -->
+    <div class="chart-card">
+      <div class="card-title">Mejor y Peor Mes</div>
+      <div class="card-subtitle">Comparación extremos del año</div>
+      <div style="display:flex; gap:12px; flex:1; flex-direction:column; justify-content:center;">
+        <div style="background:#E6F2E6; border-radius:6px; padding:12px;">
+          <div style="font-size:10px; color:#107C10; font-weight:700; margin-bottom:4px;">🏆 MEJOR MES — Febrero 2026</div>
+          <div style="font-size:20px; font-weight:800;">$31,200</div>
+          <div style="font-size:11px; color:#605E5C; margin-top:2px;">Meta al 96% · Bono completo</div>
+        </div>
+        <div style="background:#FDE7E0; border-radius:6px; padding:12px;">
+          <div style="font-size:10px; color:#D83B01; font-weight:700; margin-bottom:4px;">📉 PEOR MES — Enero 2026</div>
+          <div style="font-size:20px; font-weight:800;">$21,000</div>
+          <div style="font-size:11px; color:#605E5C; margin-top:2px;">Meta al 55% · Sin bono de meta</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Projection -->
+    <div class="chart-card">
+      <div class="card-title">Proyección Cierre de Año</div>
+      <div class="card-subtitle">Si se mantiene tendencia actual</div>
+      <div style="display:flex; flex-direction:column; justify-content:center; flex:1; gap:10px;">
+        <div>
+          <div class="kpi-label" style="margin-bottom:4px;">Compensación Total Proyectada</div>
+          <div style="font-size:26px; font-weight:800; color:#0078D4;">$324,800</div>
+          <div style="font-size:11px; color:#605E5C;">Restante del año: $162,400 estimado</div>
+        </div>
+        <div style="background:#F7F9FF; border-radius:6px; padding:10px; border:1px solid #CCE3FA;">
+          <div style="font-size:10px; font-weight:700; color:#0078D4; margin-bottom:6px;">¿Qué necesitas para maximizar tus bonos?</div>
+          <div style="font-size:11px; color:#252423; line-height:1.7;">
+            • Cerrar 4 meses más al ≥90% de meta<br>
+            • Incrementar ticket promedio 12%<br>
+            • Potencial adicional: <b class="text-green">+$28,800</b>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="powerbi-note">
+    <strong>⚙️ Nota de implementación Power BI — Historial Anual</strong>
+    <ul>
+      <li><b>Gráfico de columnas apiladas</b> con sueldo fijo (base) + variable (encima) para visualizar composición mes a mes.</li>
+      <li><b>Línea de referencia</b> al 90% en el gráfico de cumplimiento para identificar visualmente meses sobre y bajo meta.</li>
+      <li><b>Tarjeta "Proyección"</b> calculada con DAX usando promedio ponderado de últimos 3 meses.</li>
+      <li><b>Tabla YTD</b> con "Bono Potencial Perdido" — muestra el costo real de no alcanzar la meta.</li>
+      <li><b>Tooltip enriquecido</b> en cada barra: al pasar el cursor se ven detalles de ese mes sin navegar a otra página.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ SCRIPTS ═══════════════════════════ -->
+<script>
+/* ── Data Model ─────────────────────────────────────────────────── */
+const vendors = {
+  'Pedro García':  { fijo: 20000, meta: 250000, ventas: 210000, bonos: { meta: 4000, calidad: 2400, cartera: 1200, puntualidad: 800 }, bonosMax: { meta: 7000, calidad: 3000, cartera: 1200, puntualidad: 800 }, prevTotal: 27200 },
+  'Laura Ramírez': { fijo: 22000, meta: 230000, ventas: 257600, bonos: { meta: 8000, calidad: 3000, cartera: 2500, puntualidad: 1000 }, bonosMax: { meta: 8000, calidad: 3000, cartera: 2500, puntualidad: 1000 }, prevTotal: 34500 },
+  'Carlos López':  { fijo: 20000, meta: 240000, ventas: 230400, bonos: { meta: 7000, calidad: 2800, cartera: 1000, puntualidad: 400 }, bonosMax: { meta: 7000, calidad: 3000, cartera: 1500, puntualidad: 800 }, prevTotal: 29500 },
+  'Ana Torres':    { fijo: 18000, meta: 200000, ventas: 142000, bonos: { meta: 2200, calidad: 1500, cartera: 500, puntualidad: 0 }, bonosMax: { meta: 6000, calidad: 2000, cartera: 1000, puntualidad: 1000 }, prevTotal: 23000 },
+  'Diego Mendoza': { fijo: 15000, meta: 180000, ventas: 86400,  bonos: { meta: 0, calidad: 0, cartera: 0, puntualidad: 0 }, bonosMax: { meta: 6000, calidad: 2500, cartera: 1500, puntualidad: 1000 }, prevTotal: 15200 },
+};
+
+const bonusRules = {
+  meta:         { label: 'Bono de Meta', rule: 'Bono escalonado: 60% meta = bono parcial · 90%+ = bono completo' },
+  calidad:      { label: 'Bono de Calidad', rule: 'Encuestas de satisfacción cliente ≥ 4.5/5.0' },
+  cartera:      { label: 'Bono Cartera al Corriente', rule: 'Cartera vencida &lt;5% del total de ventas' },
+  puntualidad:  { label: 'Bono de Puntualidad', rule: 'Asistencia y puntualidad ≥95% del mes' },
+};
+
+const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
+
+const historicalData = {
+  'Pedro García':  { total: [21000, 31200, 25500, 23800, 27200, 28400], pct: [55, 96, 72, 68, 80, 84], fijo: 20000 },
+  'Laura Ramírez': { total: [35000, 36500, 34200, 35800, 34500, 36500], pct: [105, 112, 98, 108, 104, 112], fijo: 22000 },
+  'Carlos López':  { total: [28000, 27500, 29200, 30100, 29500, 31200], pct: [80, 78, 85, 90, 88, 96], fijo: 20000 },
+  'Ana Torres':    { total: [26000, 25500, 24200, 23000, 23000, 22200], pct: [88, 84, 78, 74, 70, 71], fijo: 18000 },
+  'Diego Mendoza': { total: [20000, 19500, 18200, 16800, 15200, 15000], pct: [68, 62, 58, 52, 55, 48], fijo: 15000 },
+};
+
+/* ── Chart instances ─────────────────────────────────────────────── */
+let charts = {};
+
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+
+/* ── Helper ─────────────────────────────────────────────────────── */
+const fmt = n => '$' + n.toLocaleString('es-MX');
+const pct = (a, b) => Math.round(a / b * 100);
+
+/* ── Main update ─────────────────────────────────────────────────── */
+function updatePage() {
+  const name = document.getElementById('selVendedor').value;
+  const d = vendors[name];
+  const h = historicalData[name];
+  const totalBonos = Object.values(d.bonos).reduce((a,b) => a+b, 0);
+  const totalBonosMax = Object.values(d.bonosMax).reduce((a,b) => a+b, 0);
+  const total = d.fijo + totalBonos;
+  const metaPct = pct(d.ventas, d.meta);
+  const diffPrev = total - d.prevTotal;
+
+  // KPI cards
+  document.getElementById('kpi-fijo').textContent = fmt(d.fijo);
+  document.getElementById('kpi-bonos').textContent = fmt(totalBonos);
+  document.getElementById('kpi-bonos-meta').textContent = `de ${fmt(totalBonosMax)} posible (${pct(totalBonos, totalBonosMax)}%)`;
+  document.getElementById('kpi-bonos-trend').textContent = (diffPrev >= 0 ? '▲ ' : '▼ ') + fmt(Math.abs(diffPrev)) + ' vs mes anterior';
+  document.getElementById('kpi-bonos-trend').className = 'kpi-trend ' + (diffPrev >= 0 ? 'up' : 'down');
+  document.getElementById('kpi-total').textContent = fmt(total);
+  document.getElementById('kpi-total-trend').textContent = (diffPrev >= 0 ? '▲ ' : '▼ ') + fmt(Math.abs(diffPrev)) + ' vs mes anterior';
+  document.getElementById('kpi-total-trend').className = 'kpi-trend ' + (diffPrev >= 0 ? 'up' : 'down');
+  document.getElementById('kpi-meta-pct').textContent = metaPct + '%';
+  document.getElementById('kpi-meta-sub').textContent = `Meta: ${fmt(d.meta)} MXN en ventas`;
+  document.getElementById('kpi-meta-pct').className = 'kpi-value ' + (metaPct >= 90 ? 'green-text' : metaPct >= 60 ? 'amber-text' : 'kpi-value');
+  document.getElementById('vendedor-name').textContent = name;
+  document.getElementById('hist-name').textContent = name;
+
+  // Alert
+  const needed = d.meta * 0.90 - d.ventas;
+  const alertBox = document.getElementById('alert-box');
+  if (metaPct >= 90) {
+    alertBox.className = 'alert-box info';
+    alertBox.innerHTML = `<div class="alert-icon">🎉</div><div><strong>${name.split(' ')[0]}, estás en meta completa este mes.</strong> Sigues acumulando bono completo. ¡Mantén el ritmo!</div>`;
+  } else if (metaPct < 60) {
+    alertBox.className = 'alert-box warn';
+    alertBox.innerHTML = `<div class="alert-icon">⚠️</div><div><strong>${name.split(' ')[0]}, no has alcanzado el umbral mínimo del 60% para activar bonos.</strong> Necesitas ${fmt(Math.round(d.meta * 0.60 - d.ventas))} más en ventas para empezar a ganar bono parcial.</div>`;
+  } else {
+    alertBox.className = 'alert-box info';
+    alertBox.innerHTML = `<div class="alert-icon">ℹ️</div><div><strong>${name.split(' ')[0]}, te faltan ${fmt(Math.round(needed))} MXN en ventas para alcanzar bono completo.</strong> Al cierre del mes todavía puedes maximizar tu bono de meta.</div>`;
+  }
+
+  // Gauge
+  drawGauge(metaPct);
+
+  // Trend chart (last 6 months from historical)
+  drawTrend(h);
+
+  // Waterfall
+  drawWaterfall(d);
+
+  // Bonus table
+  drawBonusTable(d);
+
+  // History charts
+  drawAnnual(h);
+  drawAttainment(h, metaPct);
+}
+
+/* ── Gauge ────────────────────────────────────────────────────────── */
+function drawGauge(pctVal) {
+  destroyChart('gaugeChart');
+  const val = Math.min(pctVal, 150);
+  const color = val >= 90 ? '#107C10' : val >= 60 ? '#FFC83D' : '#D83B01';
+  const ctx = document.getElementById('gaugeChart').getContext('2d');
+  charts['gaugeChart'] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [val, Math.max(0, 150 - val)],
+        backgroundColor: [color, '#E8E8E8'],
+        borderWidth: 0,
+        circumference: 180,
+        rotation: -90,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '72%',
+      plugins: { legend: { display: false }, tooltip: { enabled: false } }
+    }
+  });
+  document.getElementById('gauge-num').textContent = pctVal + '%';
+  document.getElementById('gauge-num').style.color = color;
+}
+
+/* ── Trend ─────────────────────────────────────────────────────────── */
+function drawTrend(h) {
+  destroyChart('trendChart');
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  const variable = h.total.map((t, i) => t - h.fijo);
+  charts['trendChart'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        {
+          label: 'Sueldo Fijo',
+          data: h.total.map(() => h.fijo),
+          backgroundColor: '#D0D8E8',
+          stack: 'stack',
+          borderRadius: 0,
+        },
+        {
+          label: 'Bonos Variables',
+          data: variable,
+          backgroundColor: (ctx) => {
+            const i = ctx.dataIndex;
+            return i === months.length - 1 ? '#0078D4' : '#A0BCD8';
+          },
+          stack: 'stack',
+          borderRadius: { topLeft: 4, topRight: 4 },
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } },
+        tooltip: {
+          callbacks: {
+            footer: items => {
+              const tot = items.reduce((s, i) => s + i.raw, h.fijo);
+              return 'Total: $' + (h.total[items[0].dataIndex]).toLocaleString('es-MX');
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: {
+          grid: { color: '#F0F0F0' }, ticks: { font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' }
+        }
+      }
+    }
+  });
+}
+
+/* ── Waterfall ─────────────────────────────────────────────────────── */
+function drawWaterfall(d) {
+  const totalBonos = Object.values(d.bonos).reduce((a,b) => a+b, 0);
+  const total = d.fijo + totalBonos;
+  const maxVal = d.fijo + Object.values(d.bonosMax).reduce((a,b) => a+b, 0);
+  const rows = [
+    { label: 'Sueldo Fijo', val: d.fijo, color: '#1a1a2e', isFixed: true },
+    { label: 'Bono de Meta', val: d.bonos.meta, max: d.bonosMax.meta, color: '#0078D4' },
+    { label: 'Bono Calidad', val: d.bonos.calidad, max: d.bonosMax.calidad, color: '#008575' },
+    { label: 'Bono Cartera', val: d.bonos.cartera, max: d.bonosMax.cartera, color: '#D38700' },
+    { label: 'Bono Puntualidad', val: d.bonos.puntualidad, max: d.bonosMax.puntualidad, color: '#8764B8' },
+  ];
+
+  const el = document.getElementById('waterfall');
+  el.innerHTML = rows.map(r => {
+    const w = Math.round(r.val / maxVal * 100);
+    const wMax = r.isFixed ? 0 : Math.round((r.max - r.val) / maxVal * 100);
+    return `
+      <div class="wf-row">
+        <div class="wf-label">${r.label}</div>
+        <div class="wf-bar-wrap">
+          <div style="display:flex;height:100%;">
+            <div class="wf-bar" style="width:${w}%;background:${r.color};">
+              <span>${fmt(r.val)}</span>
+            </div>
+            ${!r.isFixed && wMax > 0 ? `<div style="width:${wMax}%;background:#F0F0F0;border:1px dashed #CCC;display:flex;align-items:center;padding-left:4px;"><span style="font-size:9px;color:#AAA;">+${fmt(r.max - r.val)}</span></div>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('') + `
+    <div class="wf-row wf-total">
+      <div class="wf-label bold">TOTAL</div>
+      <div class="wf-bar-wrap">
+        <div class="wf-bar" style="width:${Math.round(total/maxVal*100)}%;background:#252423;">
+          <span>${fmt(total)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ── Bonus Table ─────────────────────────────────────────────────── */
+function drawBonusTable(d) {
+  const tbody = document.getElementById('bonus-tbody');
+  const totalBonos = Object.values(d.bonos).reduce((a,b) => a+b, 0);
+  const totalBonosMax = Object.values(d.bonosMax).reduce((a,b) => a+b, 0);
+
+  const rows = Object.keys(bonusRules).map(k => {
+    const ganado = d.bonos[k];
+    const maximo = d.bonosMax[k];
+    const p = maximo > 0 ? Math.round(ganado / maximo * 100) : 0;
+    const color = p >= 100 ? '#107C10' : p >= 50 ? '#FFC83D' : p > 0 ? '#D38700' : '#D83B01';
+    const pillClass = p >= 100 ? 'green' : p >= 50 ? 'amber' : p > 0 ? 'amber' : 'red';
+    const pillText = p >= 100 ? '✓ Completo' : p >= 50 ? '⚡ Parcial' : p > 0 ? '⚡ Parcial' : '✗ Sin bono';
+    return `
+      <tr>
+        <td class="bold">${bonusRules[k].label}</td>
+        <td style="color:#605E5C;">${bonusRules[k].rule}</td>
+        <td class="bold" style="color:${color};">${p}%</td>
+        <td>
+          <div class="pct-bar-wrap"><div class="pct-bar" style="width:${p}%;background:${color};"></div></div>
+        </td>
+        <td class="text-right">${fmt(maximo)}</td>
+        <td class="bold text-right" style="color:${color};">${fmt(ganado)}</td>
+        <td><span class="pill ${pillClass}">${pillText}</span></td>
+      </tr>
+    `;
+  });
+
+  rows.push(`
+    <tr style="background:#F7F9FF; border-top:2px solid #E0E0E0;">
+      <td class="bold" colspan="4">TOTAL BONOS</td>
+      <td class="bold text-right">${fmt(totalBonosMax)}</td>
+      <td class="bold text-right text-green">${fmt(totalBonos)}</td>
+      <td><span class="pill ${totalBonos >= totalBonosMax ? 'green' : 'amber'}">${Math.round(totalBonos/totalBonosMax*100)}% capturado</span></td>
+    </tr>
+  `);
+
+  tbody.innerHTML = rows.join('');
+}
+
+/* ── Annual History ──────────────────────────────────────────────── */
+function drawAnnual(h) {
+  destroyChart('annualChart');
+  const ctx = document.getElementById('annualChart').getContext('2d');
+  const variable = h.total.map(t => t - h.fijo);
+  charts['annualChart'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        { label: 'Sueldo Fijo', data: h.total.map(() => h.fijo), backgroundColor: '#D0D8E8', stack: 's', borderRadius: 0 },
+        { label: 'Bonos Ganados', data: variable, backgroundColor: '#0078D4', stack: 's', borderRadius: { topLeft: 4, topRight: 4 } }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: { grid: { color: '#F0F0F0' }, ticks: { font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' } }
+      }
+    }
+  });
+}
+
+/* ── Attainment Line ─────────────────────────────────────────────── */
+function drawAttainment(h, currentPct) {
+  destroyChart('attainmentChart');
+  const ctx = document.getElementById('attainmentChart').getContext('2d');
+  charts['attainmentChart'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [
+        {
+          label: '% Cumplimiento',
+          data: h.pct,
+          borderColor: '#0078D4',
+          backgroundColor: 'rgba(0,120,212,0.08)',
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointBackgroundColor: h.pct.map(p => p >= 90 ? '#107C10' : p >= 60 ? '#FFC83D' : '#D83B01'),
+          fill: true,
+          tension: 0.3,
+        },
+        {
+          label: 'Meta Bono Completo (90%)',
+          data: months.map(() => 90),
+          borderColor: '#107C10',
+          borderDash: [6, 4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+        },
+        {
+          label: 'Umbral Mínimo (60%)',
+          data: months.map(() => 60),
+          borderColor: '#D83B01',
+          borderDash: [4, 4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: { min: 0, max: 130, grid: { color: '#F0F0F0' }, ticks: { font: { size: 10 }, callback: v => v + '%' } }
+      }
+    }
+  });
+}
+
+/* ── Manager charts ──────────────────────────────────────────────── */
+function drawManagerCharts() {
+  // Mix chart
+  destroyChart('mixChart');
+  const ctxMix = document.getElementById('mixChart').getContext('2d');
+  const vNames = Object.keys(vendors).map(n => n.split(' ')[0]);
+  const fijoData = Object.values(vendors).map(v => v.fijo);
+  const bonoData = Object.values(vendors).map(v => Object.values(v.bonos).reduce((a,b) => a+b, 0));
+  charts['mixChart'] = new Chart(ctxMix, {
+    type: 'bar',
+    data: {
+      labels: vNames,
+      datasets: [
+        { label: 'Fijo', data: fijoData, backgroundColor: '#D0D8E8', stack: 's', borderRadius: 0 },
+        { label: 'Bonos', data: bonoData, backgroundColor: '#0078D4', stack: 's', borderRadius: { topLeft: 4, topRight: 4 } }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10 } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: { grid: { color: '#F0F0F0' }, ticks: { font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' } }
+      }
+    }
+  });
+
+  // Scatter
+  destroyChart('scatterChart');
+  const ctxSc = document.getElementById('scatterChart').getContext('2d');
+  const scatterData = Object.values(vendors).map((v, i) => ({
+    x: pct(v.ventas, v.meta),
+    y: v.fijo + Object.values(v.bonos).reduce((a,b)=>a+b, 0),
+    label: Object.keys(vendors)[i].split(' ')[0]
+  }));
+  charts['scatterChart'] = new Chart(ctxSc, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'Vendedores',
+        data: scatterData,
+        backgroundColor: scatterData.map(d => d.x >= 90 ? '#107C10' : d.x >= 60 ? '#FFC83D' : '#D83B01'),
+        pointRadius: 8,
+        pointHoverRadius: 10,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${scatterData[ctx.dataIndex].label}: ${ctx.parsed.x}% / $${ctx.parsed.y.toLocaleString('es-MX')}` } }
+      },
+      scales: {
+        x: { title: { display: true, text: '% Meta', font: { size: 10 } }, min: 0, max: 130, grid: { color: '#F0F0F0' }, ticks: { font: { size: 10 } } },
+        y: { title: { display: true, text: 'Compensación', font: { size: 10 } }, ticks: { font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' }, grid: { color: '#F0F0F0' } }
+      }
+    }
+  });
+
+  // Potential not captured
+  destroyChart('potentialChart');
+  const ctxPot = document.getElementById('potentialChart').getContext('2d');
+  const potData = Object.values(vendors).map(v => {
+    const max = Object.values(v.bonosMax).reduce((a,b)=>a+b, 0);
+    const earned = Object.values(v.bonos).reduce((a,b)=>a+b, 0);
+    return max - earned;
+  });
+  charts['potentialChart'] = new Chart(ctxPot, {
+    type: 'bar',
+    data: {
+      labels: vNames,
+      datasets: [{
+        label: 'Bono no capturado',
+        data: potData,
+        backgroundColor: potData.map(v => v === 0 ? '#107C10' : v < 3000 ? '#FFC83D' : '#D83B01'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: { grid: { color: '#F0F0F0' }, ticks: { font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' } }
+      }
+    }
+  });
+}
+
+/* ── Tab Navigation ─────────────────────────────────────────────── */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    const pageId = 'page-' + tab.dataset.page;
+    document.getElementById(pageId).classList.add('active');
+    if (tab.dataset.page === 'equipo') drawManagerCharts();
+    if (tab.dataset.page === 'historial') {
+      const h = historicalData[document.getElementById('selVendedor').value];
+      const metaPct = pct(vendors[document.getElementById('selVendedor').value].ventas, vendors[document.getElementById('selVendedor').value].meta);
+      drawAnnual(h);
+      drawAttainment(h, metaPct);
+    }
+  });
+});
+
+/* ── Init ─────────────────────────────────────────────────────────── */
+updatePage();
+</script>
+</body>
+</html>
